@@ -14,7 +14,7 @@ runSpeed = 3
 coast = 0.9
 jumpPower = 8
 jumpCutoff = 0.5
-gravity = 0.2
+gravity = 0.1
 
 
 -- MAIN
@@ -46,12 +46,12 @@ view computer mario =
     b = computer.screen.bottom
     convertY y = (b + 76 + y)
   in
-    [ rectangle (rgb 174 238 238) w h  -- sky
-    , rectangle (rgb 74 163 41) w 100  -- ground
+    [ rectangle (rgb 20 32 55) w h  -- sky
+    , rectangle (rgb 171 177 169) w 100  -- ground
         |> moveY b
     , mario.trace
         |> pathToPolygonVertices 1.5
-        |> polygon black
+        |> polygon white
         |> move 0 (b + 76)
         |> fade 0.5
     , marioSpriteName mario
@@ -98,7 +98,11 @@ update computer mario =
     newY = max 0 (mario.y + dt * vy)
   in
     { mario
-      | x = newX
+      | x =
+          if newX < computer.screen.right && newX > computer.screen.left then
+            newX
+          else
+            mario.x
       , y = newY
       , vx = vx
       , vy = (newY - mario.y) / dt
