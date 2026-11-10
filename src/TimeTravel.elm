@@ -4,6 +4,7 @@ import Playground exposing (..)
 import Set
 
 controlBarHeight = 64
+maxVisibleHistory = 2000
 
 addTimeTravel rawGame =
     {initialState = initialStateWithTimeTravel rawGame
@@ -13,20 +14,34 @@ addTimeTravel rawGame =
 
 initialStateWithTimeTravel rawGame =
     {rawModel = rawGame.initialState
-    , paused = False }
+    , paused = False
+    , history = []}
 
 updateWithTimeTravel rawGame computer model =
     if keyPressed "T" computer then
-        { model | rawModel = rawGame.updateState computer model.rawModel, paused = True }
+        { model | rawModel = rawGame.updateState computer model.rawModel
+         , paused = True }
     else if keyPressed "R" computer then
-        { model | rawModel = rawGame.updateState computer model.rawModel, paused = False }
+        { model | rawModel = rawGame.updateState computer model.rawModel
+         , paused = False }
     else if model.paused then
         model
     else
-        { model | rawModel = rawGame.updateState computer model.rawModel }
+        { model | rawModel = rawGame.updateState computer model.rawModel
+         , history = model.history ++ [computer] }
 
 viewWithTimeTravel rawGame computer model =
       let
+         -- Creates a rectangle at the top of the screen, stretching from the
+         -- left edge up to a specific position within the history timeline
+        historyBar color opacity index =
+              let
+                width = historyIndexToX computer index
+              in
+                rectangle color width controlBarHeight
+                  |> move (computer.screen.left + width / 2)
+                          (computer.screen.top - controlBarHeight / 2)
+                  |> fade opacity
         helpMessage =
             if model.paused then
               "Press R to resume"
@@ -34,6 +49,8 @@ viewWithTimeTravel rawGame computer model =
               "Press T to time travel"
       in
         (rawGame.view computer model.rawModel) ++
+          [historyBar black 0.3 maxVisibleHistory] ++
+          [historyBar white 0.6 (List.length model.history)] ++
           [ words white helpMessage
               |> move 0 (computer.screen.top - controlBarHeight / 2)
           ]
@@ -43,3 +60,7 @@ keyPressed keyName computer =
   , String.toUpper keyName
   ]
     |> List.any (\key -> Set.member key computer.keyboard.keys)
+
+-- Converts an index in the history list to an x coordinate on the screen
+historyIndexToX computer index =
+  (toFloat index) / maxVisibleHistory * computer.screen.width
