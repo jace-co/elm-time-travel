@@ -15,20 +15,33 @@ addTimeTravel rawGame =
 initialStateWithTimeTravel rawGame =
     {rawModel = rawGame.initialState
     , paused = False
-    , history = []}
+    , history = []
+    , historyPlaybackPosition = 0 }
 
 updateWithTimeTravel rawGame computer model =
-    if keyPressed "T" computer then
+    if model.paused && computer.mouse.down then
+        let
+            newPlaybackPosition =
+                (min (mousePosToHistoryIndex computer) (List.length model.history))
+            replayHistory pastInputs =
+                List.foldl rawGame.updateState rawGame.initialState pastInputs
+        in
+            { model | historyPlaybackPosition = newPlaybackPosition
+            , rawModel = replayHistory (List.take newPlaybackPosition model.history)}
+
+    else if keyPressed "T" computer then
         { model | rawModel = rawGame.updateState computer model.rawModel
          , paused = True }
     else if keyPressed "R" computer then
         { model | rawModel = rawGame.updateState computer model.rawModel
-         , paused = False }
+          , paused = False
+          , history = (List.take model.historyPlaybackPosition model.history)}
     else if model.paused then
         model
     else
         { model | rawModel = rawGame.updateState computer model.rawModel
-         , history = model.history ++ [computer] }
+         , history = model.history ++ [computer]
+         , historyPlaybackPosition = (List.length model.history) + 1 }
 
 viewWithTimeTravel rawGame computer model =
       let
@@ -44,16 +57,19 @@ viewWithTimeTravel rawGame computer model =
                   |> fade opacity
         helpMessage =
             if model.paused then
-              "Press R to resume"
+              "Drag yellow bar to time travel! Press R to resume"
             else
               "Press T to time travel"
       in
         (rawGame.view computer model.rawModel) ++
           [historyBar black 0.3 maxVisibleHistory] ++
           [historyBar white 0.6 (List.length model.history)] ++
+          [historyBar yellow 1 model.historyPlaybackPosition] ++
           [ words white helpMessage
               |> move 0 (computer.screen.top - controlBarHeight / 2)
           ]
+
+-- HELPER FUNCTIONS --
 
 keyPressed keyName computer =
   [ String.toLower keyName
@@ -64,3 +80,10 @@ keyPressed keyName computer =
 -- Converts an index in the history list to an x coordinate on the screen
 historyIndexToX computer index =
   (toFloat index) / maxVisibleHistory * computer.screen.width
+
+  -- Converts the mouse's current position to an index within the history list
+mousePosToHistoryIndex computer =
+   (computer.mouse.x - computer.screen.left)
+     / computer.screen.width * maxVisibleHistory
+   |> round
+
